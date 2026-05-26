@@ -16,6 +16,9 @@ app.use(
     credentials: true,
   })
 );
+app.get('/', (req, res) => {
+  res.send('Welcome to the Notes API');
+});
 
 app.use(express.json());
 
