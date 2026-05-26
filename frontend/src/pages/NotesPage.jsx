@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Grid, List, AlertCircle, ChevronLeft, ChevronRight, Trash2, X } from 'lucide-react';
+import { Plus, Search, Grid, List, AlertCircle, ChevronLeft, ChevronRight, Trash2, X, Calendar, ArrowUpDown } from 'lucide-react';
 import api from '../api/axios';
 import NoteCard from '../components/NoteCard';
 import NoteModal from '../components/NoteModal';
@@ -14,6 +14,8 @@ const NotesPage = () => {
   const [editingNote, setEditingNote] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid');
+  const [sortBy, setSortBy] = useState('updatedAt');
+  const [sortOrder, setSortOrder] = useState('desc');
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState(null);
@@ -27,9 +29,7 @@ const NotesPage = () => {
     try {
       setLoading(true);
       setError('');
-
       const { data } = await api.get('/notes');
-
       setNotes(data);
       setFilteredNotes(data);
       setCurrentPage(1);
@@ -45,7 +45,7 @@ const NotesPage = () => {
   }, [fetchNotes]);
 
   useEffect(() => {
-    let filtered = notes;
+    let filtered = [...notes];
 
     if (searchQuery) {
       filtered = filtered.filter(
@@ -55,15 +55,32 @@ const NotesPage = () => {
       );
     }
 
+    filtered.sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+
+      if (sortBy === 'updatedAt' || sortBy === 'createdAt') {
+        aValue = new Date(aValue);
+        bValue = new Date(bValue);
+      } else if (sortBy === 'title') {
+        aValue = aValue?.toLowerCase() || '';
+        bValue = bValue?.toLowerCase() || '';
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
     setFilteredNotes(filtered);
     setCurrentPage(1);
-  }, [searchQuery, notes]);
+  }, [searchQuery, notes, sortBy, sortOrder]);
 
   useEffect(() => {
     const total = Math.ceil(filteredNotes.length / itemsPerPage);
-
     setTotalPages(total > 0 ? total : 1);
-
     if (currentPage > total && total > 0) {
       setCurrentPage(total);
     }
@@ -72,7 +89,6 @@ const NotesPage = () => {
   const getCurrentPageItems = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-
     return filteredNotes.slice(startIndex, endIndex);
   };
 
@@ -98,13 +114,8 @@ const NotesPage = () => {
 
     try {
       setError('');
-
       await api.delete(`/notes/${noteToDelete._id}`);
-
-      setNotes((prev) =>
-        prev.filter((n) => n._id !== noteToDelete._id)
-      );
-
+      setNotes((prev) => prev.filter((n) => n._id !== noteToDelete._id));
       setDeleteModalOpen(false);
       setNoteToDelete(null);
     } catch (err) {
@@ -126,17 +137,10 @@ const NotesPage = () => {
       };
 
       if (editingNote) {
-        const { data } = await api.put(
-          `/notes/${editingNote._id}`,
-          noteData
-        );
-
-        setNotes((prev) =>
-          prev.map((n) => (n._id === data._id ? data : n))
-        );
+        const { data } = await api.put(`/notes/${editingNote._id}`, noteData);
+        setNotes((prev) => prev.map((n) => (n._id === data._id ? data : n)));
       } else {
         const { data } = await api.post('/notes', noteData);
-
         setNotes((prev) => [data, ...prev]);
       }
 
@@ -148,17 +152,11 @@ const NotesPage = () => {
 
   const getStats = () => {
     const total = notes.length;
-
     const recent = notes.filter((n) => {
       if (!n.createdAt) return false;
-
-      const daysSinceCreated =
-        (Date.now() - new Date(n.createdAt)) /
-        (1000 * 60 * 60 * 24);
-
+      const daysSinceCreated = (Date.now() - new Date(n.createdAt)) / (1000 * 60 * 60 * 24);
       return daysSinceCreated <= 7;
     }).length;
-
     return { total, recent };
   };
 
@@ -168,7 +166,6 @@ const NotesPage = () => {
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
-
       window.scrollTo({
         top: 0,
         behavior: 'smooth',
@@ -179,25 +176,14 @@ const NotesPage = () => {
   const getPageNumbers = () => {
     const pages = [];
     const maxVisible = 5;
-
-    let start = Math.max(
-      1,
-      currentPage - Math.floor(maxVisible / 2)
-    );
-
-    let end = Math.min(
-      totalPages,
-      start + maxVisible - 1
-    );
-
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
     if (end - start + 1 < maxVisible) {
       start = Math.max(1, end - maxVisible + 1);
     }
-
     for (let i = start; i <= end; i++) {
       pages.push(i);
     }
-
     return pages;
   };
 
@@ -206,12 +192,31 @@ const NotesPage = () => {
     setCurrentPage(1);
   };
 
+  const toggleSortOrder = () => {
+    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  };
+
+  const formatDate = (date) => {
+    if (!date) return 'No date';
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return 'Invalid date';
+    
+    const now = new Date();
+    const diffTime = Math.abs(now - dateObj);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return dateObj.toLocaleDateString();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200">
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Section */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -232,7 +237,6 @@ const NotesPage = () => {
             </button>
           </div>
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <div className="flex items-center justify-between">
@@ -267,20 +271,17 @@ const NotesPage = () => {
                 <div>
                   <p className="text-gray-500 text-sm">Last Updated</p>
                   <p className="text-lg font-semibold text-gray-900 truncate">
-                    {notes[0]?.updatedAt ? new Date(notes[0].updatedAt).toLocaleDateString() : 'No notes'}
+                    {notes[0]?.updatedAt ? formatDate(notes[0].updatedAt) (): 'No notes'}
                   </p>
                 </div>
                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
+                  <Calendar className="w-5 h-5 text-purple-600" />
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Search and Filter Bar */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative">
@@ -295,6 +296,26 @@ const NotesPage = () => {
             </div>
             
             <div className="flex gap-2">
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-3 py-2 pr-8 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none"
+                >
+                  <option value="updatedAt">Last Updated</option>
+                  <option value="createdAt">Date Created</option>
+                  <option value="title">Title</option>
+                </select>
+                <ArrowUpDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+              
+              <button
+                onClick={toggleSortOrder}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50 transition-colors bg-white"
+              >
+                {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+              </button>
+
               <button
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-lg transition-colors ${
@@ -319,13 +340,12 @@ const NotesPage = () => {
           </div>
         </div>
 
-        {/* Results Info */}
         {!loading && filteredNotes.length > 0 && (
           <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-sm">
             <div className="text-gray-600">
               Showing <span className="font-semibold text-gray-900">
                 {((currentPage - 1) * itemsPerPage) + 1}
-              </span> to <span className="font-semibold text-gray-900">
+              </span> - <span className="font-semibold text-gray-900">
                 {Math.min(currentPage * itemsPerPage, filteredNotes.length)}
               </span> of <span className="font-semibold text-gray-900">{filteredNotes.length}</span> notes
             </div>
@@ -347,7 +367,6 @@ const NotesPage = () => {
           </div>
         )}
 
-        {/* Error Message */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg animate-shake">
             <div className="flex items-center gap-2">
@@ -357,7 +376,6 @@ const NotesPage = () => {
           </div>
         )}
 
-        {/* Loading State */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="relative">
@@ -369,7 +387,6 @@ const NotesPage = () => {
             <p className="text-gray-500 text-sm mt-4">Loading your notes...</p>
           </div>
         ) : filteredNotes.length === 0 ? (
-          /* Empty State */
           <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
             {searchQuery ? (
               <>
@@ -421,7 +438,6 @@ const NotesPage = () => {
               ))}
             </div>
 
-            {/* Pagination Component */}
             {totalPages > 1 && (
               <div className="mt-8 flex justify-center">
                 <nav className="flex items-center gap-2" aria-label="Pagination">
@@ -429,7 +445,6 @@ const NotesPage = () => {
                     onClick={() => goToPage(1)}
                     disabled={currentPage === 1}
                     className="p-2 text-gray-500 hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    aria-label="First page"
                   >
                     <span className="sr-only">First</span>
                     <ChevronLeft className="w-4 h-4" />
@@ -478,7 +493,6 @@ const NotesPage = () => {
                     onClick={() => goToPage(totalPages)}
                     disabled={currentPage === totalPages}
                     className="p-2 text-gray-500 hover:text-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Last page"
                   >
                     <span className="sr-only">Last</span>
                     <ChevronRight className="w-4 h-4" />
@@ -488,7 +502,6 @@ const NotesPage = () => {
               </div>
             )}
 
-            {/* Page Info Footer */}
             {totalPages > 1 && (
               <div className="mt-4 text-center text-xs text-gray-500">
                 <span>Page {currentPage} of {totalPages}</span>
@@ -503,7 +516,6 @@ const NotesPage = () => {
           </>
         )}
 
-        {/* Note Modal */}
         {modalOpen && (
           <NoteModal
             key={editingNote?._id ?? 'new'}
@@ -513,19 +525,15 @@ const NotesPage = () => {
           />
         )}
 
-        {/* Delete Confirmation Modal */}
         {deleteModalOpen && noteToDelete && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
-            {/* Backdrop */}
             <div 
               className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
               onClick={() => setDeleteModalOpen(false)}
             />
             
-            {/* Modal */}
             <div className="flex min-h-full items-center justify-center p-4">
               <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md transform transition-all animate-slideUp">
-                {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-red-50 to-white rounded-t-2xl">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
@@ -543,17 +551,14 @@ const NotesPage = () => {
                   </button>
                 </div>
 
-                {/* Content */}
                 <div className="p-6">
                   <div className="text-center">
-                    {/* Warning Icon */}
                     <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                       <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                       </svg>
                     </div>
                     
-                    {/* Message */}
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
                       Are you sure?
                     </h3>
@@ -562,7 +567,6 @@ const NotesPage = () => {
                       This action cannot be undone.
                     </p>
                     
-                    {/* Note Preview */}
                     <div className="bg-gray-50 rounded-lg p-3 mb-6 text-left">
                       <p className="text-xs text-gray-500 mb-1">Note preview:</p>
                       <p className="text-sm text-gray-700 line-clamp-2">
@@ -571,7 +575,6 @@ const NotesPage = () => {
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex gap-3">
                     <button
                       type="button"

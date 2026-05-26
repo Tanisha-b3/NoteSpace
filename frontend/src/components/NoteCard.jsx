@@ -1,6 +1,8 @@
 import { Calendar, Edit2, Trash2, Clock, MoreVertical } from 'lucide-react';
 import { useState } from 'react';
 
+
+
 const NoteCard = ({ note, onEdit, onDelete, viewMode = 'grid' }) => {
   const [showMenu, setShowMenu] = useState(false);
 
