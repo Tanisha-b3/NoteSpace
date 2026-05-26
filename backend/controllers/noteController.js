@@ -35,7 +35,7 @@ export const getById = async (req, res) => {
 
 export const create = async (req, res) => {
   try {
-    const { title, content } = req.body;
+    const { title, content, tags } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ message: 'Title is required.' });
@@ -48,6 +48,7 @@ export const create = async (req, res) => {
       userId: req.userId,
       title: title.trim(),
       content: content.trim(),
+      tags: tags || [],
     });
 
     res.status(201).json(note);
@@ -66,7 +67,7 @@ export const update = async (req, res) => {
       return res.status(400).json({ message: 'Invalid note ID.' });
     }
 
-    const { title, content } = req.body;
+    const { title, content, tags } = req.body;
     if (!title || !title.trim()) {
       return res.status(400).json({ message: 'Title is required.' });
     }
@@ -77,7 +78,7 @@ export const update = async (req, res) => {
     const note = await updateNoteByIdAndUser(
       req.params.id,
       req.userId,
-      { title: title.trim(), content: content.trim() }
+      { title: title.trim(), content: content.trim(), tags: tags || [] }
     );
 
     if (!note) {

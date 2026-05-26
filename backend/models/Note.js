@@ -17,6 +17,16 @@ const noteSchema = new mongoose.Schema({
     required: [true, 'Content is required'],
     trim: true,
   },
+  tags: {
+    type: [String],
+    default: [],
+    validate: {
+      validator: function (v) {
+        return v.every(tag => typeof tag === 'string' && tag.trim() !== '');
+      },
+      message: 'Tags must be non-empty strings',
+    },
+  },
 }, { timestamps: true });
 
 export default mongoose.model('Note', noteSchema);
