@@ -1,18 +1,14 @@
 import { Calendar, Edit2, Trash2, Clock, MoreVertical } from 'lucide-react';
 import { useState } from 'react';
 
-
-
 const NoteCard = ({ note, onEdit, onDelete, viewMode = 'grid' }) => {
   const [showMenu, setShowMenu] = useState(false);
 
   const formatDate = (date) => {
-    // Handle various date formats and invalid dates
     if (!date) return 'No date';
     
     let dateObj;
     try {
-      // Check if it's a valid date string or timestamp
       if (typeof date === 'string' || typeof date === 'number') {
         dateObj = new Date(date);
       } else if (date instanceof Date) {
@@ -21,7 +17,6 @@ const NoteCard = ({ note, onEdit, onDelete, viewMode = 'grid' }) => {
         return 'Invalid date';
       }
       
-      // Check if the date is valid
       if (isNaN(dateObj.getTime())) {
         return 'Invalid date';
       }
@@ -32,9 +27,9 @@ const NoteCard = ({ note, onEdit, onDelete, viewMode = 'grid' }) => {
       if (diffDays === 0) return 'Today';
       if (diffDays === 1) return 'Yesterday';
       if (diffDays < 7) return `${diffDays} days ago`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
       return dateObj.toLocaleDateString();
     } catch (error) {
-      console.error('Date formatting error:', error);
       return 'Invalid date';
     }
   };
@@ -45,15 +40,9 @@ const NoteCard = ({ note, onEdit, onDelete, viewMode = 'grid' }) => {
     return content.substring(0, maxLength) + '...';
   };
 
-  // Get the correct date field (try multiple common field names)
-  const getNoteDate = () => {
-    // Try different possible date field names
-    const dateField = note.updatedAt || note.updated_at || note.updated || note.date || note.createdAt;
-    return dateField;
-  };
-
-  const noteDate = getNoteDate();
-  const formattedDate = formatDate(noteDate);
+  const createdDate = formatDate(note.createdAt);
+  const updatedDate = formatDate(note.updatedAt);
+  const isUpdated = note.createdAt !== note.updatedAt && note.updatedAt;
 
   if (viewMode === 'list') {
     return (
@@ -64,12 +53,20 @@ const NoteCard = ({ note, onEdit, onDelete, viewMode = 'grid' }) => {
               <h3 className="font-semibold text-gray-900 truncate">{note.title || 'Untitled'}</h3>
               <div className="flex items-center gap-1 text-xs text-gray-500">
                 <Clock className="w-3 h-3" />
-                <span>{formattedDate}</span>
+                <span>{updatedDate}</span>
               </div>
             </div>
             <p className="text-sm text-gray-600 line-clamp-1">
               {getPreviewText(note.content, 80)}
             </p>
+            <div className="flex flex-wrap gap-1 mt-2">
+              {note.tags?.slice(0, 2).map((tag, index) => (
+                <span key={index} className="text-xs text-indigo-600">#{tag}</span>
+              ))}
+              {note.tags?.length > 2 && (
+                <span className="text-xs text-gray-400">+{note.tags.length - 2}</span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 ml-4">
             <button
@@ -95,7 +92,6 @@ const NoteCard = ({ note, onEdit, onDelete, viewMode = 'grid' }) => {
   return (
     <div className="group bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden hover:-translate-y-1">
       <div className="p-5 flex flex-col h-full">
-        {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
             <h3 className="font-semibold text-gray-900 line-clamp-2 text-lg">
@@ -136,53 +132,67 @@ const NoteCard = ({ note, onEdit, onDelete, viewMode = 'grid' }) => {
           </div>
         </div>
 
-        {/* Content Preview */}
-        <div className="flex-1 mb-4">
-          <p className="text-gray-600 text-sm leading-relaxed line-clamp-4 whitespace-pre-wrap">
+        <div className="flex-1 mb-3">
+          <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 whitespace-pre-wrap">
             {note.content || 'No content'}
           </p>
         </div>
 
- <div className="flex-1 mb-4">
-  <div className="flex flex-wrap gap-2">
-    {note.tags?.length > 0 ? (
-      note.tags.map((tag, index) => (
-        <span
-          key={index}
-          className="px-3 py-1 text-xs font-medium bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 rounded-full border border-indigo-200 shadow-sm hover:scale-105 transition-transform"
-        >
-          #{tag}
-        </span>
-      ))
-    ) : (
-      <span className="text-gray-400 text-sm italic">
-        No tags added
-      </span>
-    )}
-  </div>
-</div>
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-          <div className="flex items-center gap-1 text-xs text-gray-500">
-            <Calendar className="w-3 h-3" />
-            <span>{formattedDate}</span>
+        <div className="mb-3">
+          <div className="flex flex-wrap gap-2">
+            {note.tags?.length > 0 ? (
+              note.tags.slice(0, 3).map((tag, index) => (
+                <span
+                  key={index}
+                  className="px-2 py-1 text-xs font-medium bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 rounded-full border border-indigo-200"
+                >
+                  #{tag}
+                </span>
+              ))
+            ) : (
+              <span className="text-gray-400 text-xs italic">
+                No tags
+              </span>
+            )}
+            {note.tags?.length > 3 && (
+              <span className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 rounded-full">
+                +{note.tags.length - 3}
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onEdit(note)}
-              className="text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors flex items-center gap-1"
-            >
-              <Edit2 className="w-3 h-3" />
-              Edit
-            </button>
-            <span className="text-gray-300">|</span>
-            <button
-              onClick={() => onDelete(note)}
-              className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors flex items-center gap-1"
-            >
-              <Trash2 className="w-3 h-3" />
-              Delete
-            </button>
+        </div>
+
+        <div className="pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                <span>Created: {createdDate}</span>
+              </div>
+              {isUpdated && (
+                <div className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  <span>Updated: {updatedDate}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onEdit(note)}
+                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors flex items-center gap-1"
+              >
+                <Edit2 className="w-3 h-3" />
+                Edit
+              </button>
+              <span className="text-gray-300">|</span>
+              <button
+                onClick={() => onDelete(note)}
+                className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors flex items-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       </div>
