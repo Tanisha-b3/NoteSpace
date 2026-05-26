@@ -141,6 +141,24 @@ const NoteCard = ({ note, onEdit, onDelete, viewMode = 'grid' }) => {
           </p>
         </div>
 
+ <div className="flex-1 mb-4">
+  <div className="flex flex-wrap gap-2">
+    {note.tags?.length > 0 ? (
+      note.tags.map((tag, index) => (
+        <span
+          key={index}
+          className="px-3 py-1 text-xs font-medium bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 rounded-full border border-indigo-200 shadow-sm hover:scale-105 transition-transform"
+        >
+          #{tag}
+        </span>
+      ))
+    ) : (
+      <span className="text-gray-400 text-sm italic">
+        No tags added
+      </span>
+    )}
+  </div>
+</div>
         {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
           <div className="flex items-center gap-1 text-xs text-gray-500">
